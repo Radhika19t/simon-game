@@ -1,0 +1,42 @@
+body {
+    text-align: center;
+    background-color: #011F3F;
+    color: white;
+    font-family: 'Arial', sans-serif;
+}
+
+#level-title {
+    font-size: 2.5rem;
+    margin: 5%;
+}
+
+.container {
+    width: 300px;
+    margin: auto;
+}
+
+.row {
+    display: flex;
+}
+
+.btn {
+    height: 140px;
+    width: 140px;
+    margin: 10px;
+    border-radius: 20%;
+    cursor: pointer;
+}
+
+.green { background-color: green; }
+.red { background-color: red; }
+.yellow { background-color: yellow; }
+.blue { background-color: blue; }
+
+.pressed {
+    box-shadow: 0 0 20px white;
+    opacity: 0.5;
+}
+
+.game-over {
+    background-color: red;
+}
