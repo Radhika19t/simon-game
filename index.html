@@ -3,109 +3,251 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simon Game</title>
+  <title>Simon — Memory Challenge</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800&display=swap" rel="stylesheet" />
 </head>
 <body>
-  <div class="scanlines"></div>
-  <div class="noise"></div>
 
-  <div class="container">
-    <!-- Header -->
-    <header class="header">
-      <h1 class="title">SIMON</h1>
-      <p class="subtitle">MEMORY CHALLENGE</p>
-    </header>
+  <!-- Background grid -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-vignette" aria-hidden="true"></div>
 
-    <!-- Score Panel -->
-    <div class="score-panel">
-      <div class="score-box">
-        <span class="score-label">SCORE</span>
-        <span class="score-value" id="score">0</span>
+  <!-- ── SCREEN: TITLE ── -->
+  <div class="screen" id="screen-title">
+    <div class="title-wrap">
+      <div class="logo-ring" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="100" cy="100" r="88" stroke="url(#rg1)" stroke-width="2"/>
+          <circle cx="100" cy="100" r="68" stroke="url(#rg2)" stroke-width="1" stroke-dasharray="6 4"/>
+          <defs>
+            <linearGradient id="rg1" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#00d4ff"/>
+              <stop offset="100%" stop-color="#7b5cf0"/>
+            </linearGradient>
+            <linearGradient id="rg2" x1="0" y1="200" x2="200" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#7b5cf0"/>
+              <stop offset="100%" stop-color="#00d4ff" stop-opacity="0.4"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo-s">S</span>
       </div>
-      <div class="score-box highlight">
-        <span class="score-label">LEVEL</span>
-        <span class="score-value" id="level">0</span>
-      </div>
-      <div class="score-box">
-        <span class="score-label">BEST</span>
-        <span class="score-value" id="high-score">0</span>
-      </div>
-    </div>
+      <h1 class="main-title">SIMON</h1>
+      <p class="main-sub">MEMORY CHALLENGE</p>
 
-    <!-- Status Message -->
-    <div class="status" id="status">Press START to Play</div>
-
-    <!-- Simon Board -->
-    <div class="board" id="board">
-      <div class="btn-wrap top-left">
-        <button class="simon-btn green" id="green" data-color="green" aria-label="Green"></button>
-      </div>
-      <div class="btn-wrap top-right">
-        <button class="simon-btn red" id="red" data-color="red" aria-label="Red"></button>
-      </div>
-      <div class="center-hub">
-        <div class="hub-inner">
-          <div class="hub-logo">S</div>
+      <div class="title-stats">
+        <div class="stat-chip">
+          <span class="stat-chip-label">BEST</span>
+          <span class="stat-chip-val" id="title-best">0</span>
+        </div>
+        <div class="stat-chip accent">
+          <span class="stat-chip-label">GAMES</span>
+          <span class="stat-chip-val" id="title-games">0</span>
         </div>
       </div>
-      <div class="btn-wrap bottom-left">
-        <button class="simon-btn yellow" id="yellow" data-color="yellow" aria-label="Yellow"></button>
+
+      <div class="mode-select">
+        <p class="mode-label">SELECT MODE</p>
+        <div class="mode-cards">
+          <button class="mode-card active" data-mode="classic">
+            <span class="mode-icon">⬛</span>
+            <span class="mode-name">Classic</span>
+            <span class="mode-desc">Normal speed</span>
+          </button>
+          <button class="mode-card" data-mode="speed">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-name">Speed</span>
+            <span class="mode-desc">Fast sequences</span>
+          </button>
+          <button class="mode-card" data-mode="chaos">
+            <span class="mode-icon">🌀</span>
+            <span class="mode-name">Chaos</span>
+            <span class="mode-desc">Random tempo</span>
+          </button>
+        </div>
       </div>
-      <div class="btn-wrap bottom-right">
-        <button class="simon-btn blue" id="blue" data-color="blue" aria-label="Blue"></button>
+
+      <div class="title-options">
+        <label class="opt-toggle">
+          <input type="checkbox" id="strictToggle" />
+          <span class="knob"></span>
+          <span>Strict Mode</span>
+        </label>
+        <label class="opt-toggle">
+          <input type="checkbox" id="soundToggle" checked />
+          <span class="knob"></span>
+          <span>Sound</span>
+        </label>
+      </div>
+
+      <button class="big-btn" id="btnPlay">PLAY</button>
+      <button class="ghost-btn" id="btnLeaderboard">🏆 Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: GAME ── -->
+  <div class="screen hidden" id="screen-game">
+
+    <!-- HUD -->
+    <div class="hud">
+      <button class="hud-back" id="btnBack" aria-label="Back to menu">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M11 4L6 9L11 14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="hud-center">
+        <span class="hud-mode-label" id="hudMode">CLASSIC</span>
+        <span class="hud-strict" id="hudStrict"></span>
+      </div>
+      <div class="hud-scores">
+        <div class="hud-score">
+          <span class="hud-slabel">LVL</span>
+          <span class="hud-sval" id="hudLevel">0</span>
+        </div>
+        <div class="hud-score main">
+          <span class="hud-slabel">SCORE</span>
+          <span class="hud-sval" id="hudScore">0</span>
+        </div>
+        <div class="hud-score">
+          <span class="hud-slabel">BEST</span>
+          <span class="hud-sval" id="hudBest">0</span>
+        </div>
       </div>
     </div>
 
-    <!-- Controls -->
-    <div class="controls">
-      <button class="ctrl-btn" id="startBtn">START</button>
-      <button class="ctrl-btn secondary" id="resetBtn">RESET</button>
+    <!-- Progress bar -->
+    <div class="seq-progress" id="seqProgress">
+      <div class="seq-fill" id="seqFill"></div>
     </div>
 
-    <!-- Strict Mode Toggle -->
-    <div class="options">
-      <label class="toggle-wrap">
-        <input type="checkbox" id="strictMode" />
-        <span class="toggle"></span>
-        <span class="toggle-label">STRICT MODE</span>
-      </label>
+    <!-- Status message -->
+    <div class="status-wrap">
+      <div class="status-text" id="statusText">Get ready…</div>
+      <div class="combo-wrap" id="comboWrap">
+        <span id="comboCount">0</span><span class="combo-x">×</span>
+        <span class="combo-label">COMBO</span>
+      </div>
     </div>
 
-    <!-- Leaderboard -->
-    <div class="leaderboard-section">
-      <button class="lb-toggle" id="lbToggle">🏆 LEADERBOARD</button>
-      <div class="leaderboard" id="leaderboard" hidden>
-        <table>
-          <thead>
-            <tr><th>#</th><th>INITIALS</th><th>SCORE</th></tr>
-          </thead>
-          <tbody id="lb-body"></tbody>
-        </table>
-        <button class="lb-clear" id="clearLb">Clear Board</button>
+    <!-- BOARD -->
+    <div class="board-outer">
+      <div class="board" id="board">
+
+        <!-- Quadrants -->
+        <button class="qbtn green" id="btnGreen" data-color="green" aria-label="Green">
+          <span class="qbtn-inner"></span>
+          <span class="q-ripple" aria-hidden="true"></span>
+        </button>
+        <button class="qbtn red" id="btnRed" data-color="red" aria-label="Red">
+          <span class="qbtn-inner"></span>
+          <span class="q-ripple" aria-hidden="true"></span>
+        </button>
+        <button class="qbtn yellow" id="btnYellow" data-color="yellow" aria-label="Yellow">
+          <span class="qbtn-inner"></span>
+          <span class="q-ripple" aria-hidden="true"></span>
+        </button>
+        <button class="qbtn blue" id="btnBlue" data-color="blue" aria-label="Blue">
+          <span class="qbtn-inner"></span>
+          <span class="q-ripple" aria-hidden="true"></span>
+        </button>
+
+        <!-- Center hub -->
+        <div class="hub" id="hub">
+          <div class="hub-ring"></div>
+          <div class="hub-inner">
+            <div class="hub-logo">S</div>
+            <div class="hub-sub" id="hubSub">—</div>
+          </div>
+        </div>
+
+      </div>
+      <!-- Outer glow ring -->
+      <div class="board-glow" id="boardGlow" aria-hidden="true"></div>
+    </div>
+
+    <!-- Input indicators -->
+    <div class="input-indicators" id="inputIndicators" aria-hidden="true">
+      <div class="ind-dot" id="ind-0"></div>
+      <div class="ind-dot" id="ind-1"></div>
+      <div class="ind-dot" id="ind-2"></div>
+      <div class="ind-dot" id="ind-3"></div>
+      <div class="ind-dot" id="ind-4"></div>
+    </div>
+
+    <!-- Keyboard hint -->
+    <div class="key-hints">
+      <span class="key-hint"><kbd>G</kbd> Green</span>
+      <span class="key-hint"><kbd>R</kbd> Red</span>
+      <span class="key-hint"><kbd>Y</kbd> Yellow</span>
+      <span class="key-hint"><kbd>B</kbd> Blue</span>
+    </div>
+
+  </div>
+
+  <!-- ── SCREEN: LEADERBOARD ── -->
+  <div class="screen hidden" id="screen-lb">
+    <div class="lb-wrap">
+      <button class="ghost-btn small" id="btnLbBack">← Back</button>
+      <h2 class="lb-title">LEADERBOARD</h2>
+
+      <div class="lb-filter">
+        <button class="lb-ftab active" data-filter="all">All</button>
+        <button class="lb-ftab" data-filter="classic">Classic</button>
+        <button class="lb-ftab" data-filter="speed">Speed</button>
+        <button class="lb-ftab" data-filter="chaos">Chaos</button>
+      </div>
+
+      <div class="lb-list" id="lbList"></div>
+      <button class="danger-btn" id="btnClearLb">Clear Leaderboard</button>
+    </div>
+  </div>
+
+  <!-- ── MODAL: GAME OVER / WIN ── -->
+  <div class="modal-backdrop hidden" id="modalBackdrop">
+    <div class="modal" id="modal">
+      <div class="modal-icon" id="modalIcon">💀</div>
+      <h2 class="modal-title" id="modalTitle">GAME OVER</h2>
+      <p class="modal-sub" id="modalSub">You reached level 5</p>
+
+      <div class="modal-stats">
+        <div class="modal-stat">
+          <span class="mstat-label">SCORE</span>
+          <span class="mstat-val" id="mScore">0</span>
+        </div>
+        <div class="modal-stat">
+          <span class="mstat-label">LEVEL</span>
+          <span class="mstat-val" id="mLevel">0</span>
+        </div>
+        <div class="modal-stat">
+          <span class="mstat-label">MAX COMBO</span>
+          <span class="mstat-val" id="mCombo">0</span>
+        </div>
+      </div>
+
+      <div class="new-best" id="newBest" hidden>
+        <span>🎉 NEW BEST SCORE!</span>
+      </div>
+
+      <div class="initials-row">
+        <label for="initialsInput">Your Initials:</label>
+        <input type="text" id="initialsInput" maxlength="3" placeholder="AAA" autocomplete="off" />
+      </div>
+
+      <div class="modal-actions">
+        <button class="big-btn" id="btnSave">SAVE & PLAY AGAIN</button>
+        <button class="ghost-btn" id="btnSkip">Skip</button>
       </div>
     </div>
   </div>
 
-  <!-- Game Over Modal -->
-  <div class="modal-overlay" id="modal" hidden>
-    <div class="modal">
-      <h2 id="modal-title">GAME OVER</h2>
-      <p id="modal-msg">You reached level <span id="modal-level">0</span></p>
-      <div class="modal-score-info">
-        <span>Score: <strong id="modal-score">0</strong></span>
-      </div>
-      <div class="initials-wrap" id="initials-wrap">
-        <label for="initials">Enter Initials for Leaderboard:</label>
-        <input type="text" id="initials" maxlength="3" placeholder="AAA" />
-      </div>
-      <div class="modal-btns">
-        <button class="ctrl-btn" id="modal-save">SAVE SCORE</button>
-        <button class="ctrl-btn secondary" id="modal-retry">PLAY AGAIN</button>
-      </div>
+  <!-- ── MODAL: COUNTDOWN ── -->
+  <div class="modal-backdrop hidden" id="countdownBackdrop">
+    <div class="countdown-modal">
+      <div class="countdown-num" id="countdownNum">3</div>
+      <div class="countdown-label">GET READY</div>
     </div>
   </div>
 

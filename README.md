@@ -1,58 +1,70 @@
-# 🎮 Simon Game — Interactive Memory Challenge
+# 🎮 Simon Game v2 — Memory Challenge
 
-A fully responsive, retro-arcade Simon memory game built with pure HTML, CSS, and JavaScript.
+A complete, production-ready Simon Game with multiple modes, combo system, and full leaderboard.
 
-## Features
+## ✨ New Features in v2
 
-- 🎵 **Web Audio API** — sounds generated in the browser, no audio files needed
-- 🏆 **High Score** — persisted in localStorage
-- 📋 **Leaderboard** — save initials + score after each game
-- ⚡ **Strict Mode** — one wrong move ends the game
-- ⌨️ **Keyboard Controls** — `G`, `R`, `Y`, `B` keys to play; `Enter` to start; `Esc` to reset
-- 📱 **Touch Support** — works on mobile
-- 🎨 **Retro Arcade UI** — scanlines, glow effects, Orbitron font
+| Feature | Details |
+|---|---|
+| **3 Game Modes** | Classic, Speed, Chaos |
+| **Combo System** | Chain correct inputs for bonus points |
+| **Countdown** | 3-2-1 start animation |
+| **Score Floats** | +pts popups on correct input |
+| **Leaderboard filters** | Filter board by mode |
+| **Per-step progress** | Bar fills as sequence plays |
+| **Board outer glow** | Color-matched glow per button |
+| **Ripple effect** | Tap ripple on each button press |
+| **Games counter** | Total games tracked |
+| **Max combo tracking** | Saved per game to leaderboard |
 
-## How to Play
+## 🎮 Game Modes
 
-1. Press **START** (or `Enter`)
-2. Watch the sequence of colored flashes
-3. Repeat the sequence by clicking the buttons (in order)
-4. Each round adds one more step — reach **Level 20** to win!
+- **Classic** — Standard speed, slows sequence reveals over time
+- **Speed** — Fast sequences, minimal delays
+- **Chaos** — Random tempo, occasionally adds extra steps
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
-| `G` | Green button |
-| `R` | Red button |
-| `Y` | Yellow button |
-| `B` | Blue button |
+| `G` | Green |
+| `R` | Red |
+| `Y` | Yellow |
+| `B` | Blue |
 | `Enter` | Start game |
-| `Esc` | Reset |
+| `Esc` | Back / close modal |
 
-## Tech Stack
+## Scoring
 
-- HTML5
-- CSS3 (custom properties, animations, grid)
-- JavaScript (ES6+)
-- Web Audio API
-- LocalStorage API
+- +10 per correct step
+- +5 bonus per step when combo ≥ 3
+- Combos reset on any mistake
 
 ## Run Locally
 
-Just open `index.html` in any modern browser — no build step or server needed.
+```bash
+# Just open index.html — no build step needed
+open index.html
+```
+
+Or with VS Code Live Server: right-click `index.html` → Open with Live Server.
+
+## Push to GitHub
 
 ```bash
-# Optional: serve with VS Code Live Server
-# Or just double-click index.html
+git init
+git add .
+git commit -m "Simon Game v2"
+git remote add origin https://github.com/Radhika19t/simon-game.git
+git push -u origin main
 ```
 
-## Project Structure
+## Tech Stack
 
-```
-simon-game/
-├── index.html    # Game layout and markup
-├── style.css     # Retro arcade styles
-├── script.js     # Game logic, audio, storage
-└── README.md
-```
+- HTML5 · CSS3 · JavaScript (ES6+)
+- Web Audio API (no audio files)
+- LocalStorage (scores, leaderboard)
+
+## License
+
+MIT

@@ -1,213 +1,353 @@
-/**
- * Simon Game — Full Game Logic
- * Features: sequences, strict mode, scoring, high-score, leaderboard, Web Audio
- */
+/* ══════════════════════════════════════════════════
+   SIMON GAME v2 — Full Logic
+   New: Modes, Combo system, Countdown, Score floats,
+   Per-step progress, Leaderboard filters, Animations
+   ══════════════════════════════════════════════════ */
 
-// ─── Audio (Web Audio API — no files needed) ──────────────────────────────
-const AudioCtx = window.AudioContext || window.webkitAudioContext;
-let audioCtx = null;
+// ─── Audio ───────────────────────────────────────────────────────────────
+let actx = null;
+const getActx = () => { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); return actx; };
 
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new AudioCtx();
-  return audioCtx;
-}
+const FREQS = { green: 415, red: 330, yellow: 262, blue: 220 };
 
-const COLOR_FREQ = { green: 391.995, red: 329.628, yellow: 261.626, blue: 220.000 };
-
-function playTone(color, duration = 200) {
+function playTone(color, ms = 220) {
+  if (!soundOn) return;
   try {
-    const ctx = getAudioCtx();
+    const ctx = getActx();
     const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
     osc.type = 'sine';
-    osc.frequency.value = COLOR_FREQ[color] || 300;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration / 1000);
+    osc.frequency.value = FREQS[color] || 300;
+    g.gain.setValueAtTime(0.28, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + ms / 1000);
     osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + duration / 1000);
-  } catch (e) { /* silently fail if audio not available */ }
-}
-
-function playErrorSound() {
-  try {
-    const ctx = getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.value = 80;
-    gain.gain.setValueAtTime(0.3, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.5);
+    osc.stop(ctx.currentTime + ms / 1000);
   } catch (e) {}
 }
 
-function playWinSound() {
-  const notes = [523.25, 659.25, 783.99, 1046.50];
-  notes.forEach((freq, i) => {
+function playError() {
+  if (!soundOn) return;
+  try {
+    const ctx = getActx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.value = 90;
+    g.gain.setValueAtTime(0.25, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.55);
+  } catch (e) {}
+}
+
+function playWin() {
+  if (!soundOn) return;
+  [523, 659, 784, 1047].forEach((f, i) => {
     try {
-      const ctx = getAudioCtx();
+      const ctx = getActx();
       const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      const start = ctx.currentTime + i * 0.15;
-      gain.gain.setValueAtTime(0.25, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-      osc.start(start);
-      osc.stop(start + 0.3);
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      const t = ctx.currentTime + i * 0.13;
+      osc.frequency.value = f;
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.start(t); osc.stop(t + 0.3);
     } catch (e) {}
   });
 }
 
-// ─── Constants ───────────────────────────────────────────────────────────
-const COLORS    = ['green', 'red', 'yellow', 'blue'];
-const BASE_DELAY = 1000;  // ms between sequence steps
-const WIN_LEVEL  = 20;    // win at this level
+function playComboSound(comboCount) {
+  if (!soundOn) return;
+  try {
+    const ctx = getActx();
+    const osc = ctx.createOscillator();
+    const g   = ctx.createGain();
+    osc.connect(g); g.connect(ctx.destination);
+    osc.frequency.value = 600 + comboCount * 50;
+    osc.type = 'triangle';
+    g.gain.setValueAtTime(0.15, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.1);
+  } catch (e) {}
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────
+const COLORS   = ['green', 'red', 'yellow', 'blue'];
+const WIN_LVL  = 20;
+
+const MODE_SPEEDS = {
+  classic: { base: 900, minDelay: 350, dec: 30, litMs: 380 },
+  speed:   { base: 550, minDelay: 200, dec: 15, litMs: 220 },
+  chaos:   { base: 700, minDelay: 200, dec: 20, litMs: 300 },
+};
 
 // ─── State ───────────────────────────────────────────────────────────────
-let sequence       = [];
-let playerInput    = [];
-let level          = 0;
-let score          = 0;
-let highScore      = 0;
-let isPlaying      = false;
-let isShowingSeq   = false;
-let strictMode     = false;
-let inputLocked    = true;
+let sequence    = [];
+let playerInput = [];
+let level       = 0;
+let score       = 0;
+let highScore   = 0;
+let gamesPlayed = 0;
+let combo       = 0;
+let maxCombo    = 0;
+let isPlaying   = false;
+let locked      = true;
+let showing     = false;
+let mode        = 'classic';
+let strictOn    = false;
+let soundOn     = true;
 
 // ─── DOM ─────────────────────────────────────────────────────────────────
-const scoreEl    = document.getElementById('score');
-const levelEl    = document.getElementById('level');
-const highScoreEl= document.getElementById('high-score');
-const statusEl   = document.getElementById('status');
-const boardEl    = document.getElementById('board');
-const startBtn   = document.getElementById('startBtn');
-const resetBtn   = document.getElementById('resetBtn');
-const strictCheck= document.getElementById('strictMode');
-const lbToggle   = document.getElementById('lbToggle');
-const lbEl       = document.getElementById('leaderboard');
-const lbBody     = document.getElementById('lb-body');
-const clearLbBtn = document.getElementById('clearLb');
-const modalEl    = document.getElementById('modal');
-const modalTitle = document.getElementById('modal-title');
-const modalMsg   = document.getElementById('modal-msg');
-const modalLevel = document.getElementById('modal-level');
-const modalScore = document.getElementById('modal-score');
-const modalSave  = document.getElementById('modal-save');
-const modalRetry = document.getElementById('modal-retry');
-const initialsInput = document.getElementById('initials');
+const $ = id => document.getElementById(id);
 
-// ─── Local Storage ───────────────────────────────────────────────────────
-function loadHighScore() {
-  const h = localStorage.getItem('simonHighScore');
-  if (h) { highScore = parseInt(h, 10); highScoreEl.textContent = highScore; }
+const screens = {
+  title:  $('screen-title'),
+  game:   $('screen-game'),
+  lb:     $('screen-lb'),
+};
+
+// Title
+const titleBest   = $('title-best');
+const titleGames  = $('title-games');
+const modeCards   = document.querySelectorAll('.mode-card');
+const strictToggle= $('strictToggle');
+const soundToggle = $('soundToggle');
+const btnPlay     = $('btnPlay');
+const btnLB       = $('btnLeaderboard');
+
+// Game
+const hudMode   = $('hudMode');
+const hudStrict = $('hudStrict');
+const hudLevel  = $('hudLevel');
+const hudScore  = $('hudScore');
+const hudBest   = $('hudBest');
+const seqFill   = $('seqFill');
+const statusText= $('statusText');
+const comboWrap = $('comboWrap');
+const comboCount= $('comboCount');
+const boardEl   = $('board');
+const boardGlow = $('boardGlow');
+const hubSub    = $('hubSub');
+const btnBack   = $('btnBack');
+
+// Leaderboard
+const btnLbBack = $('btnLbBack');
+const lbList    = $('lbList');
+const lbTabs    = document.querySelectorAll('.lb-ftab');
+const btnClearLb= $('btnClearLb');
+
+// Modal
+const modalBackdrop = $('modalBackdrop');
+const modalIcon     = $('modalIcon');
+const modalTitle    = $('modalTitle');
+const modalSub      = $('modalSub');
+const mScore        = $('mScore');
+const mLevel        = $('mLevel');
+const mCombo        = $('mCombo');
+const newBest       = $('newBest');
+const initialsInput = $('initialsInput');
+const btnSave       = $('btnSave');
+const btnSkip       = $('btnSkip');
+
+// Countdown
+const countdownBackdrop = $('countdownBackdrop');
+const countdownNum      = $('countdownNum');
+
+// ─── Screen Nav ──────────────────────────────────────────────────────────
+function showScreen(name) {
+  Object.entries(screens).forEach(([k, el]) => {
+    if (k === name) el.classList.remove('hidden');
+    else el.classList.add('hidden');
+  });
+}
+
+// ─── Storage ─────────────────────────────────────────────────────────────
+function loadStorage() {
+  highScore   = parseInt(localStorage.getItem('sg_best')  || '0', 10);
+  gamesPlayed = parseInt(localStorage.getItem('sg_games') || '0', 10);
+  titleBest.textContent  = highScore;
+  titleGames.textContent = gamesPlayed;
+  hudBest.textContent    = highScore;
 }
 
 function saveHighScore() {
   if (score > highScore) {
     highScore = score;
-    localStorage.setItem('simonHighScore', highScore);
-    highScoreEl.textContent = highScore;
+    localStorage.setItem('sg_best', highScore);
+    hudBest.textContent    = highScore;
+    titleBest.textContent  = highScore;
+    return true;
   }
+  return false;
 }
 
-function loadLeaderboard() {
-  const data = localStorage.getItem('simonLeaderboard');
-  return data ? JSON.parse(data) : [];
+function incGames() {
+  gamesPlayed++;
+  localStorage.setItem('sg_games', gamesPlayed);
+  titleGames.textContent = gamesPlayed;
 }
 
-function saveLeaderboard(entries) {
-  localStorage.setItem('simonLeaderboard', JSON.stringify(entries));
+// Leaderboard
+function loadLB() {
+  try { return JSON.parse(localStorage.getItem('sg_lb') || '[]'); }
+  catch (e) { return []; }
+}
+function saveLB(arr) { localStorage.setItem('sg_lb', JSON.stringify(arr)); }
+function addLBEntry(initials, sc, lv, mc, md) {
+  const entries = loadLB();
+  entries.push({ initials: (initials || '???').toUpperCase().slice(0,3), score: sc, level: lv, maxCombo: mc, mode: md, date: Date.now() });
+  entries.sort((a,b) => b.score - a.score);
+  saveLB(entries.slice(0, 50));
+  renderLB();
 }
 
-function renderLeaderboard() {
-  const entries = loadLeaderboard();
-  lbBody.innerHTML = '';
-  if (entries.length === 0) {
-    lbBody.innerHTML = `<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px;">No scores yet</td></tr>`;
+let lbFilter = 'all';
+function renderLB() {
+  const all = loadLB().filter(e => lbFilter === 'all' || e.mode === lbFilter);
+  if (all.length === 0) {
+    lbList.innerHTML = '<div class="lb-empty">No scores yet for this mode</div>';
     return;
   }
-  entries
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10)
-    .forEach((e, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${i + 1}</td><td>${e.initials}</td><td>${e.score}</td>`;
-      lbBody.appendChild(tr);
-    });
+  lbList.innerHTML = all.slice(0,20).map((e, i) => `
+    <div class="lb-entry" style="animation-delay:${i*0.04}s">
+      <span class="lb-rank">${i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i+1}</span>
+      <span class="lb-initials">${e.initials}</span>
+      <span class="lb-mode-badge">${(e.mode||'classic').toUpperCase()}</span>
+      <span class="lb-score">${e.score}</span>
+      <span class="lb-level">Lv ${e.level}</span>
+    </div>
+  `).join('');
 }
 
-function addLeaderboardEntry(initials, sc) {
-  const entries = loadLeaderboard();
-  entries.push({ initials: initials.toUpperCase().slice(0, 3) || '???', score: sc });
-  saveLeaderboard(entries);
-  renderLeaderboard();
+// ─── Countdown ───────────────────────────────────────────────────────────
+function runCountdown(cb) {
+  countdownBackdrop.classList.remove('hidden');
+  let n = 3;
+  countdownNum.textContent = n;
+  const tick = () => {
+    n--;
+    if (n <= 0) {
+      countdownBackdrop.classList.add('hidden');
+      cb();
+      return;
+    }
+    countdownNum.style.animation = 'none';
+    countdownNum.offsetHeight;
+    countdownNum.style.animation = 'count-pop .8s ease';
+    countdownNum.textContent = n;
+    setTimeout(tick, 800);
+  };
+  setTimeout(tick, 800);
 }
 
-// ─── Core Game Logic ─────────────────────────────────────────────────────
+// ─── Game Core ────────────────────────────────────────────────────────────
 function startGame() {
-  sequence   = [];
-  playerInput= [];
-  level      = 0;
-  score      = 0;
-  isPlaying  = true;
-  inputLocked= true;
-  updateScoreDisplay();
-  startBtn.textContent = 'PLAYING';
-  startBtn.disabled    = true;
-  nextRound();
+  sequence    = [];
+  playerInput = [];
+  level       = 0;
+  score       = 0;
+  combo       = 0;
+  maxCombo    = 0;
+  isPlaying   = true;
+  locked      = true;
+
+  hudMode.textContent   = mode.toUpperCase();
+  hudStrict.textContent = strictOn ? '⚡ STRICT' : '';
+  hudScore.textContent  = 0;
+  hudLevel.textContent  = 0;
+  hudBest.textContent   = highScore;
+  seqFill.style.width   = '0%';
+  comboWrap.classList.remove('visible');
+  setStatus('Watch the sequence…');
+
+  showScreen('game');
+  runCountdown(() => nextRound());
 }
 
 function nextRound() {
   playerInput = [];
   level++;
-  levelEl.textContent = level;
-  const newColor = COLORS[Math.floor(Math.random() * COLORS.length)];
-  sequence.push(newColor);
+  hudLevel.textContent = level;
+  hubSub.textContent   = `LV ${level}`;
+
+  // Add new color (chaos mode adds 1-2)
+  if (mode === 'chaos' && level > 3 && Math.random() < .3) {
+    sequence.push(COLORS[Math.floor(Math.random()*4)]);
+  }
+  sequence.push(COLORS[Math.floor(Math.random()*4)]);
+
+  seqFill.style.width = '0%';
   setStatus(`Level ${level} — Watch!`);
-  setTimeout(() => showSequence(), 600);
+  setTimeout(() => showSequence(), 500);
+}
+
+function getSpeed() {
+  const cfg = MODE_SPEEDS[mode] || MODE_SPEEDS.classic;
+  const base = cfg.base;
+  let speed = base - (level - 1) * cfg.dec;
+  if (mode === 'chaos') speed += (Math.random() - 0.5) * 200;
+  return Math.max(cfg.minDelay, Math.round(speed));
 }
 
 function showSequence() {
-  isShowingSeq = true;
-  inputLocked  = true;
+  showing = true;
+  locked  = true;
   let i = 0;
-  const speed = Math.max(200, BASE_DELAY - (level - 1) * 40);
+  const cfg = MODE_SPEEDS[mode] || MODE_SPEEDS.classic;
 
   function step() {
     if (i >= sequence.length) {
-      isShowingSeq = false;
-      inputLocked  = false;
+      showing = false;
+      locked  = false;
+      seqFill.style.width = '0%';
       setStatus(`Your turn! (${sequence.length} step${sequence.length > 1 ? 's' : ''})`);
       return;
     }
     const color = sequence[i];
-    flashButton(color, 350);
-    playTone(color, 300);
+    litButton(color, cfg.litMs);
+    playTone(color, cfg.litMs - 40);
+    boardGlow.className = 'board-glow ' + color;
+    setTimeout(() => boardGlow.className = 'board-glow', cfg.litMs + 80);
+    seqFill.style.width = `${((i + 1) / sequence.length) * 100}%`;
     i++;
-    setTimeout(step, speed);
+    setTimeout(step, getSpeed());
   }
   step();
 }
 
-function flashButton(color, duration = 400) {
-  const btn = document.getElementById(color);
+function litButton(color, ms) {
+  const btn = document.getElementById('btn' + color.charAt(0).toUpperCase() + color.slice(1));
   if (!btn) return;
-  btn.classList.add('active');
-  setTimeout(() => btn.classList.remove('active'), duration);
+  btn.classList.add('lit');
+  setTimeout(() => btn.classList.remove('lit'), ms);
 }
 
-function handlePlayerInput(color) {
-  if (!isPlaying || inputLocked || isShowingSeq) return;
-  playTone(color, 200);
-  flashButton(color, 180);
+function rippleButton(color) {
+  const btn = document.getElementById('btn' + color.charAt(0).toUpperCase() + color.slice(1));
+  if (!btn) return;
+  btn.classList.remove('rippling');
+  void btn.offsetWidth;
+  btn.classList.add('rippling');
+  setTimeout(() => btn.classList.remove('rippling'), 400);
+}
+
+function handleInput(color) {
+  if (!isPlaying || locked || showing) return;
+  playTone(color, 180);
+  litButton(color, 160);
+  rippleButton(color);
+
+  boardGlow.className = 'board-glow ' + color;
+  setTimeout(() => boardGlow.className = 'board-glow', 250);
+
+  // Update input indicators
+  const idx = playerInput.length;
+  const dot = document.getElementById('ind-' + (idx % 5));
+  if (dot) { dot.className = 'ind-dot ' + color; setTimeout(() => dot.className = 'ind-dot', 600); }
 
   const expected = sequence[playerInput.length];
   playerInput.push(color);
@@ -217,32 +357,48 @@ function handlePlayerInput(color) {
     return;
   }
 
-  score += 10;
-  scoreEl.textContent = score;
+  // Correct step
+  combo++;
+  if (combo > maxCombo) maxCombo = combo;
+  const pts = 10 + (combo > 2 ? (combo - 2) * 5 : 0);
+  score += pts;
+  hudScore.textContent = score;
+  spawnScoreFloat(pts);
+
+  if (combo >= 3) {
+    comboWrap.classList.add('visible');
+    comboCount.textContent = combo;
+    playComboSound(combo);
+  }
+
+  // Update progress
+  const pct = (playerInput.length / sequence.length) * 100;
+  seqFill.style.width = pct + '%';
 
   if (playerInput.length === sequence.length) {
-    // Completed the sequence
-    if (level === WIN_LEVEL) {
-      onWin();
-      return;
-    }
-    setStatus('✓ Correct! Next round…');
+    if (level === WIN_LEVEL) { onWin(); return; }
+    setStatus('✓ Correct!');
     saveHighScore();
-    setTimeout(() => nextRound(), 1000);
+    setTimeout(() => nextRound(), 900);
   }
 }
 
 function onMistake() {
-  inputLocked = true;
-  boardEl.classList.add('shake');
-  playErrorSound();
-  setTimeout(() => boardEl.classList.remove('shake'), 500);
+  locked = true;
+  combo  = 0;
+  comboWrap.classList.remove('visible');
 
-  if (strictMode) {
-    setStatus('✗ Wrong! Game over in strict mode.');
+  boardEl.classList.add('error');
+  setTimeout(() => boardEl.classList.remove('error'), 500);
+  boardGlow.className = 'board-glow red';
+  setTimeout(() => boardGlow.className = 'board-glow', 600);
+  playError();
+
+  if (strictOn) {
+    setStatus('✗ Wrong! Game over.', 'error');
     setTimeout(() => endGame(false), 900);
   } else {
-    setStatus('✗ Wrong! Replaying sequence…');
+    setStatus('✗ Wrong! Replaying…', 'error');
     playerInput = [];
     setTimeout(() => showSequence(), 1200);
   }
@@ -250,128 +406,143 @@ function onMistake() {
 
 function onWin() {
   isPlaying = false;
-  inputLocked = true;
-  playWinSound();
-  boardEl.parentElement.classList.add('win');
-  setTimeout(() => boardEl.parentElement.classList.remove('win'), 2000);
+  locked    = true;
+  playWin();
+  boardEl.classList.add('win');
+  setTimeout(() => boardEl.classList.remove('win'), 2500);
   saveHighScore();
+  incGames();
   openModal(true);
 }
 
 function endGame(won = false) {
-  isPlaying  = false;
-  inputLocked= true;
-  saveHighScore();
-  openModal(won);
+  isPlaying = false;
+  locked    = true;
+  const isNew = saveHighScore();
+  incGames();
+  openModal(won, isNew);
 }
 
-function resetGame() {
-  sequence   = [];
-  playerInput= [];
-  level      = 0;
-  score      = 0;
-  isPlaying  = false;
-  isShowingSeq = false;
-  inputLocked  = true;
-  updateScoreDisplay();
-  setStatus('Press START to Play');
-  startBtn.textContent = 'START';
-  startBtn.disabled    = false;
-  hideModal();
+function setStatus(msg, type = '') {
+  statusText.textContent = msg;
+  statusText.style.color = type === 'error' ? 'var(--c-red)' : 'var(--cyan)';
+  statusText.style.textShadow = type === 'error'
+    ? '0 0 12px var(--c-red)'
+    : '0 0 12px var(--cyan)';
 }
 
-function updateScoreDisplay() {
-  scoreEl.textContent = score;
-  levelEl.textContent = level;
+// ─── Score Float ─────────────────────────────────────────────────────────
+function spawnScoreFloat(pts) {
+  const board = document.getElementById('board');
+  const rect  = board.getBoundingClientRect();
+  const el    = document.createElement('div');
+  el.className = 'score-float';
+  el.textContent = '+' + pts;
+  el.style.left = (rect.left + rect.width/2 - 20) + 'px';
+  el.style.top  = (rect.top + rect.height/2) + 'px';
+  if (pts > 15) { el.style.color = 'var(--c-yellow)'; el.style.fontSize = '1.3rem'; }
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 800);
 }
 
-function setStatus(msg) {
-  statusEl.textContent = msg;
-}
-
-// ─── Modal ───────────────────────────────────────────────────────────────
-function openModal(won) {
-  modalTitle.textContent = won ? '🎉 YOU WIN!' : 'GAME OVER';
-  modalLevel.textContent = level;
-  modalScore.textContent = score;
-  modalMsg.innerHTML = won
-    ? `You completed all ${WIN_LEVEL} levels!`
-    : `You reached level <span id="modal-level">${level}</span>`;
+// ─── Modal ────────────────────────────────────────────────────────────────
+function openModal(won, isNewBest = false) {
+  modalIcon.textContent  = won ? '🏆' : '💀';
+  modalTitle.textContent = won ? 'YOU WIN!' : 'GAME OVER';
+  modalSub.textContent   = won
+    ? `Completed all ${WIN_LEVEL} levels!`
+    : `You reached level ${level}`;
+  mScore.textContent = score;
+  mLevel.textContent = level;
+  mCombo.textContent = maxCombo;
+  newBest.hidden = !isNewBest;
   initialsInput.value = '';
-  modalEl.hidden = false;
+  modalBackdrop.classList.remove('hidden');
+  setTimeout(() => initialsInput.focus(), 300);
 }
 
-function hideModal() {
-  modalEl.hidden = true;
+function closeModal() {
+  modalBackdrop.classList.add('hidden');
 }
 
 // ─── Event Listeners ─────────────────────────────────────────────────────
+
+// Title
+modeCards.forEach(card => {
+  card.addEventListener('click', () => {
+    modeCards.forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+    mode = card.dataset.mode;
+  });
+});
+strictToggle.addEventListener('change', () => strictOn = strictToggle.checked);
+soundToggle.addEventListener('change', () => soundOn  = soundToggle.checked);
+btnPlay.addEventListener('click', startGame);
+btnLB.addEventListener('click', () => { renderLB(); showScreen('lb'); });
+
+// Game HUD
+btnBack.addEventListener('click', () => {
+  isPlaying = false;
+  locked    = true;
+  boardGlow.className = 'board-glow';
+  showScreen('title');
+  loadStorage();
+});
+
 // Simon buttons
 COLORS.forEach(color => {
-  const btn = document.getElementById(color);
-  btn.addEventListener('click', () => handlePlayerInput(color));
-  // Keyboard-style press feel
-  btn.addEventListener('mousedown', () => {
-    if (!isPlaying || inputLocked || isShowingSeq) return;
-    btn.classList.add('active');
-  });
-  btn.addEventListener('mouseup', () => btn.classList.remove('active'));
-  btn.addEventListener('mouseleave', () => btn.classList.remove('active'));
-  // Touch support
-  btn.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    handlePlayerInput(color);
-  }, { passive: false });
+  const id  = 'btn' + color.charAt(0).toUpperCase() + color.slice(1);
+  const btn = document.getElementById(id);
+  btn.addEventListener('click',      () => handleInput(color));
+  btn.addEventListener('touchstart', e  => { e.preventDefault(); handleInput(color); }, { passive: false });
+  btn.addEventListener('mousedown',  () => btn.classList.add('pressed'));
+  btn.addEventListener('mouseup',    () => btn.classList.remove('pressed'));
+  btn.addEventListener('mouseleave', () => btn.classList.remove('pressed'));
 });
 
-// Keyboard support (G R Y B)
+// Keyboard
 const keyMap = { g: 'green', r: 'red', y: 'yellow', b: 'blue' };
-document.addEventListener('keydown', (e) => {
-  const color = keyMap[e.key.toLowerCase()];
-  if (color) handlePlayerInput(color);
+document.addEventListener('keydown', e => {
+  const c = keyMap[e.key.toLowerCase()];
+  if (c) handleInput(c);
   if (e.key === 'Enter' && !isPlaying) startGame();
-  if (e.key === 'Escape') resetGame();
-});
-
-startBtn.addEventListener('click', () => {
-  if (!isPlaying) startGame();
-});
-
-resetBtn.addEventListener('click', resetGame);
-
-strictCheck.addEventListener('change', () => {
-  strictMode = strictCheck.checked;
-});
-
-lbToggle.addEventListener('click', () => {
-  lbEl.hidden = !lbEl.hidden;
-  if (!lbEl.hidden) renderLeaderboard();
-});
-
-clearLbBtn.addEventListener('click', () => {
-  if (confirm('Clear all leaderboard scores?')) {
-    localStorage.removeItem('simonLeaderboard');
-    renderLeaderboard();
+  if (e.key === 'Escape') {
+    if (isPlaying) { isPlaying = false; locked = true; showScreen('title'); loadStorage(); }
+    else closeModal();
   }
 });
 
-modalSave.addEventListener('click', () => {
-  const initials = initialsInput.value.trim() || '???';
-  addLeaderboardEntry(initials, score);
-  hideModal();
-  resetGame();
-  // Open leaderboard to show the new score
-  lbEl.hidden = false;
-  renderLeaderboard();
+// Leaderboard
+btnLbBack.addEventListener('click', () => showScreen('title'));
+lbTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    lbTabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    lbFilter = tab.dataset.filter;
+    renderLB();
+  });
+});
+btnClearLb.addEventListener('click', () => {
+  if (confirm('Clear all leaderboard scores?')) {
+    localStorage.removeItem('sg_lb');
+    renderLB();
+  }
 });
 
-modalRetry.addEventListener('click', () => {
-  hideModal();
-  resetGame();
-  setTimeout(() => startGame(), 200);
+// Modal
+btnSave.addEventListener('click', () => {
+  const initials = initialsInput.value.trim() || '???';
+  addLBEntry(initials, score, level, maxCombo, mode);
+  closeModal();
+  showScreen('title');
+  loadStorage();
+});
+btnSkip.addEventListener('click', () => {
+  closeModal();
+  showScreen('title');
+  loadStorage();
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────
-loadHighScore();
-renderLeaderboard();
-setStatus('Press START to Play');
+loadStorage();
+showScreen('title');
