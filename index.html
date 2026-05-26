@@ -1,25 +1,114 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Simon Game</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simon Game</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet" />
 </head>
 <body>
+  <div class="scanlines"></div>
+  <div class="noise"></div>
 
-<h1 id="level-title">Press Any Key to Start</h1>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">SIMON</h1>
+      <p class="subtitle">MEMORY CHALLENGE</p>
+    </header>
 
-<div class="container">
-    <div class="row">
-        <div class="btn green" id="green"></div>
-        <div class="btn red" id="red"></div>
+    <!-- Score Panel -->
+    <div class="score-panel">
+      <div class="score-box">
+        <span class="score-label">SCORE</span>
+        <span class="score-value" id="score">0</span>
+      </div>
+      <div class="score-box highlight">
+        <span class="score-label">LEVEL</span>
+        <span class="score-value" id="level">0</span>
+      </div>
+      <div class="score-box">
+        <span class="score-label">BEST</span>
+        <span class="score-value" id="high-score">0</span>
+      </div>
     </div>
-    <div class="row">
-        <div class="btn yellow" id="yellow"></div>
-        <div class="btn blue" id="blue"></div>
-    </div>
-</div>
 
-<script src="script.js"></script>
+    <!-- Status Message -->
+    <div class="status" id="status">Press START to Play</div>
+
+    <!-- Simon Board -->
+    <div class="board" id="board">
+      <div class="btn-wrap top-left">
+        <button class="simon-btn green" id="green" data-color="green" aria-label="Green"></button>
+      </div>
+      <div class="btn-wrap top-right">
+        <button class="simon-btn red" id="red" data-color="red" aria-label="Red"></button>
+      </div>
+      <div class="center-hub">
+        <div class="hub-inner">
+          <div class="hub-logo">S</div>
+        </div>
+      </div>
+      <div class="btn-wrap bottom-left">
+        <button class="simon-btn yellow" id="yellow" data-color="yellow" aria-label="Yellow"></button>
+      </div>
+      <div class="btn-wrap bottom-right">
+        <button class="simon-btn blue" id="blue" data-color="blue" aria-label="Blue"></button>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <button class="ctrl-btn" id="startBtn">START</button>
+      <button class="ctrl-btn secondary" id="resetBtn">RESET</button>
+    </div>
+
+    <!-- Strict Mode Toggle -->
+    <div class="options">
+      <label class="toggle-wrap">
+        <input type="checkbox" id="strictMode" />
+        <span class="toggle"></span>
+        <span class="toggle-label">STRICT MODE</span>
+      </label>
+    </div>
+
+    <!-- Leaderboard -->
+    <div class="leaderboard-section">
+      <button class="lb-toggle" id="lbToggle">🏆 LEADERBOARD</button>
+      <div class="leaderboard" id="leaderboard" hidden>
+        <table>
+          <thead>
+            <tr><th>#</th><th>INITIALS</th><th>SCORE</th></tr>
+          </thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+        <button class="lb-clear" id="clearLb">Clear Board</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Modal -->
+  <div class="modal-overlay" id="modal" hidden>
+    <div class="modal">
+      <h2 id="modal-title">GAME OVER</h2>
+      <p id="modal-msg">You reached level <span id="modal-level">0</span></p>
+      <div class="modal-score-info">
+        <span>Score: <strong id="modal-score">0</strong></span>
+      </div>
+      <div class="initials-wrap" id="initials-wrap">
+        <label for="initials">Enter Initials for Leaderboard:</label>
+        <input type="text" id="initials" maxlength="3" placeholder="AAA" />
+      </div>
+      <div class="modal-btns">
+        <button class="ctrl-btn" id="modal-save">SAVE SCORE</button>
+        <button class="ctrl-btn secondary" id="modal-retry">PLAY AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
 </body>
 </html>
