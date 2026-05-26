@@ -65,6 +65,3 @@ git push -u origin main
 - Web Audio API (no audio files)
 - LocalStorage (scores, leaderboard)
 
-## License
-
-MIT
